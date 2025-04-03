@@ -1,0 +1,166 @@
+/* Estilos generales */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-color: #f9f9f9;
+  }
+  
+  .admin-container {
+    display: flex;
+    height: 100vh;
+  }
+  
+  /* Sidebar */
+  .sidebar {
+    width: 250px;
+    background-color: #f4f4f4;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-right: 2px solid #ccc;
+  }
+  
+  .sidebar h2 {
+    margin-bottom: 20px;
+  }
+  
+  /* Menú lateral */
+  .sidebar nav button {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+    background-color: #ddd;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-size: 16px;
+  }
+  
+  .sidebar nav button:hover {
+    background-color: #ccc;
+  }
+  
+  /* Botón “Salir” */
+  .logout {
+    margin-top: auto;
+    background-color: red;
+    color: white;
+    padding: 10px;
+    border: none;
+    cursor: pointer;
+    width: 100%;
+    font-size: 16px;
+    font-weight: bold;
+  }
+  
+  /* Contenido principal */
+  .content {
+    flex: 1;
+    padding: 20px;
+    background-color: white;
+    text-align: center;
+    overflow-y: auto;
+  }
+  
+  h3 {
+    text-align: center;
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+  
+  /* Barra superior de pestañas */
+  .navbar {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 2px solid #ccc;
+    margin-bottom: 20px;
+    padding: 10px 0;
+    background-color: #fff;
+  }
+  
+  .navbar button {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    margin: 0 15px;
+    padding: 10px;
+    color: black;
+    transition: color 0.2s, border-bottom 0.2s;
+  }
+  
+  .navbar button:hover {
+    color: #00bcd4;
+  }
+  
+  .navbar button.active {
+    font-weight: bold;
+    color: #00bcd4;
+    border-bottom: 3px solid #00bcd4;
+  }
+  
+  /* Input de búsqueda */
+  .search-box {
+    width: 60%;
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+  
+  /* Tablas */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  
+  table th,
+  table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+  }
+  
+  table th {
+    background-color: #00bcd4;
+    color: white;
+    font-size: 16px;
+  }
+  
+  button {
+    background-color: #00bcd4;
+    color: white;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    font-size: 14px;
+    border-radius: 5px;
+    margin-top: 5px;
+  }
+  
+  button:hover {
+    background-color: #008c9e;
+  }
+  
+  .delete-button {
+    background-color: red;
+    margin-left: 5px;
+  }
+  .delete-button:hover {
+    background-color: darkred;
+  }
+  
+  .confirmar-button {
+    margin-top: 20px;
+    background-color: #009688;
+    font-weight: bold;
+  }
+  
+  .confirmar-button:hover {
+    background-color: #00796b;
+  }
+  

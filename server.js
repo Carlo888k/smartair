@@ -14,7 +14,7 @@ const http = require("http");
 require('dotenv').config();
 
 
-const cors = require("cors");
+
 const app = express();
 
 
@@ -30,7 +30,7 @@ const corsOptions = {
 app.use(express.json());    // parsear JSON
 
 // 🔌 Socket.IO con CORS (igual configurado)
-const http = require("http");
+
 const socketIo = require("socket.io");
 const server = http.createServer(app);
 const io = socketIo(server, {

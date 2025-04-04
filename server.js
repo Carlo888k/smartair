@@ -22,7 +22,7 @@ const app = express();
 
 // 🟩 Configurar CORS correctamente
 const corsOptions = {
-  origin: "http://localhost:5173", // tu frontend local
+  origin: "*", // tu frontend local
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 };

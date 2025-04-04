@@ -11,24 +11,32 @@ const mysql = require("mysql2");
 const axios = require("axios");
 const mongoose = require("mongoose");
 const http = require("http");
+require('dotenv').config();
 
+
+const cors = require("cors");
 const app = express();
 
 
+
+
+// 🟩 Configurar CORS correctamente
+const corsOptions = {
+  origin: "http://localhost:5173", // tu frontend local
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+};
+// aplicar CORS antes de cualquier ruta
+app.use(express.json());    // parsear JSON
+
+// 🔌 Socket.IO con CORS (igual configurado)
+const http = require("http");
 const socketIo = require("socket.io");
 const server = http.createServer(app);
 const io = socketIo(server, {
-  cors: {
-    origin: "http://localhost:5173", // <-- el puerto de tu frontend real
-    methods: ["GET", "POST"]
-  }
+  cors: corsOptions
 });
 
-// Configuración de dotenv para usar variables de entorno
-dotenv.config();
-
-app.use(express.json());
-app.use(cors());
 
 // Verificar si la carpeta 'uploads' existe; si no, crearla
 const uploadDir = 'uploads/';
@@ -38,11 +46,13 @@ if (!fs.existsSync(uploadDir)) {
 
 // Configuración de la base de datos
 const db = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "", // Cambia esto si usas contraseña en MySQL
-    database: "smartair"
-  });
+  host: 'shinkansen.proxy.rlwy.net',
+  user: 'root',
+  password: 'iLXBRrCJJEhhbPdhKmeJgSSSdpJGLJUO',
+  database: 'railway',
+  port: 37223
+});
+
   
   // Conectar a MySQL
   db.connect((err) => {
@@ -56,11 +66,13 @@ const db = mysql.createConnection({
 app.use('/uploads', express.static('uploads'));
 
 const pool = mysql.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'smartair'
+  host: 'shinkansen.proxy.rlwy.net',
+  user: 'root',
+  password: 'iLXBRrCJJEhhbPdhKmeJgSSSdpJGLJUO',
+  database: 'railway',
+  port: 37223
 });
+
 //conecccion a mongoDB
 mongoose.connect(process.env.MONGO_URI)
 

@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const multer = require("multer");
 const path = require("path");
@@ -13,12 +13,7 @@ const mongoose = require("mongoose");
 const http = require("http");
 require('dotenv').config();
 
-
-
 const app = express();
-
-
-
 
 // 🟩 Configurar CORS correctamente
 const corsOptions = {
@@ -26,11 +21,13 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 };
-// aplicar CORS antes de cualquier ruta
-app.use(express.json());    // parsear JSON
+
+// aplicar CORS a todas las rutas
+app.use(cors(corsOptions));  // Aplica CORS a todas las rutas
+
+app.use(express.json()); // parsear JSON
 
 // 🔌 Socket.IO con CORS (igual configurado)
-
 const socketIo = require("socket.io");
 const server = http.createServer(app);
 const io = socketIo(server, {

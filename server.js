@@ -251,37 +251,51 @@ app.get('/clientes', (req, res) => {
 });
 // **Modificar cliente**
 app.put('/clientes/:id', (req, res) => {
-  const { id } = req.params;
-  const { nombre, correo, contrasenia } = req.body;
+    const { id } = req.params;
+    const { nombre, correo, contrasenia } = req.body;
 
-  if (!nombre || !correo) {
-      return res.status(400).json({ message: "Faltan datos en la solicitud" });
-  }
+    if (!nombre || !correo) {
+        return res.status(400).json({ message: "Faltan datos en la solicitud" });
+    }
 
-  // Consultar la contraseña actual si no se envió una nueva
-  const queryGet = 'SELECT contrasenia FROM usuario WHERE id = ?';
-  pool.query(queryGet, [id], (err, results) => {
-      if (err || results.length === 0) {
-          console.error("Error al obtener la contraseña actual:", err);
-          return res.status(500).json({ message: "Error al obtener datos del cliente" });
-      }
+    // Creamos una función async dentro para poder usar await
+    (async () => {
+        try {
+            // 1. Obtener la contraseña actual
+            const queryGet = 'SELECT contrasenia FROM usuario WHERE id = ?';
+            const results = await new Promise((resolve, reject) => {
+                pool.query(queryGet, [id], (err, results) => {
+                    if (err || results.length === 0) {
+                        return reject(err || new Error("Cliente no encontrado"));
+                    }
+                    resolve(results);
+                });
+            });
 
-      // Usar la contraseña nueva solo si se proporcionó
-      const nuevaContrasenia = contrasenia && contrasenia.trim() !== "" 
-          ? contrasenia 
-          : results[0].contrasenia;
+            // 2. Determinar la nueva contraseña
+            const nuevaContrasenia =
+                contrasenia && contrasenia.trim() !== ""
+                    ? await bcrypt.hash(contrasenia, 10)
+                    : results[0].contrasenia;
 
-      const queryUpdate = 'UPDATE usuario SET nombre = ?, correo = ?, contrasenia = ?, tipo = "cliente" WHERE id = ?';
-      pool.query(queryUpdate, [nombre, correo, nuevaContrasenia, id], (err, result) => {
-          if (err) {
-              console.error("Error al modificar cliente:", err);
-              return res.status(500).json({ message: "Error al modificar cliente" });
-          }
+            // 3. Ejecutar la actualización
+            const queryUpdate = 'UPDATE usuario SET nombre = ?, correo = ?, contrasenia = ?, tipo = "cliente" WHERE id = ?';
+            await new Promise((resolve, reject) => {
+                pool.query(queryUpdate, [nombre, correo, nuevaContrasenia, id], (err, result) => {
+                    if (err) return reject(err);
+                    resolve(result);
+                });
+            });
 
-          res.json({ message: "Cliente modificado exitosamente" });
-      });
-  });
+            res.json({ message: "Cliente modificado exitosamente" });
+
+        } catch (error) {
+            console.error("Error en la modificación:", error);
+            res.status(500).json({ message: "Error al modificar cliente" });
+        }
+    })();
 });
+
 
 
 // **Eliminar cliente**

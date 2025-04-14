@@ -651,9 +651,10 @@ app.post("/api/venta-final", (req, res) => {
         return res.status(500).json({ message: "Carrito vacío o error" });
       }
 
-      const total = productos.reduce((acc, p) => acc + p.subtotal, 0);
+        const total = productos.reduce((acc, p) => acc + parseFloat(p.subtotal), 0);
 
-      const queryVenta = `
+
+        const queryVenta = `
   INSERT INTO ventas (id_usuario, monto, calle, numero, colonia, cp, municipio, estado, latitud, longitud, fecha_hora)
   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
 `;

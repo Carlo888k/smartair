@@ -228,9 +228,72 @@ app.post('/login', (req, res) => {
                 }
                 res.json({token, tipo: user.tipo, id: user.id});
             });
+
+            
+app.post('/login-empleado', (req, res) => {
+    const { correo, contrasenia } = req.body;
+
+    // Buscar por correo en tabla empleados
+    pool.query('SELECT * FROM empleados WHERE correo = ?', [correo], async (err, results) => {
+        if (err) {
+            console.error('Error en la consulta:', err);
+            return res.status(500).json({ message: 'Error en el servidor' });
+        }
+
+        if (results.length === 0) {
+            return res.status(401).json({ message: 'Empleado no encontrado' });
+        }
+
+        const empleado = results[0];
+
+        // Validar contraseña encriptada con bcrypt
+        const passwordMatch = await bcrypt.compare(contrasenia, empleado.contrasenia);
+        if (!passwordMatch) {
+            return res.status(401).json({ message: 'Contraseña incorrecta' });
+        }
+
+        // Verificar si ya tiene sesión activa
+        pool.query('SELECT * FROM sesiones WHERE usuario_id = ?', [empleado.id], (err, sessionResult) => {
+            if (err) {
+                console.error('Error al verificar sesión:', err);
+                return res.status(500).json({ message: 'Error al verificar sesión' });
+            }
+
+            const continuarLogin = () => {
+                // Generar token con tipo de usuario = empleado
+                const token = jwt.sign(
+                    { id: empleado.id, correo: empleado.correo, tipo: 'empleado' },
+                    'secreto',
+                    { expiresIn: '1h' }
+                );
+
+                // Guardar sesión
+                pool.query('INSERT INTO sesiones (usuario_id, token) VALUES (?, ?)', [empleado.id, token], (err) => {
+                    if (err) {
+                        console.error('Error al guardar sesión:', err);
+                        return res.status(500).json({ message: 'Error al guardar sesión' });
+                    }
+
+                    res.json({ token, id: empleado.id, tipo: 'empleado' });
+                });
+            };
+
+            // Si hay sesión activa, primero la eliminamos
+            if (sessionResult.length > 0) {
+                pool.query('DELETE FROM sesiones WHERE usuario_id = ?', [empleado.id], (err) => {
+                    if (err) {
+                        console.error('Error al eliminar sesión previa:', err);
+                        return res.status(500).json({ message: 'Error al eliminar sesión previa' });
+                    }
+                    continuarLogin();
+                });
+            } else {
+                continuarLogin();
+            }
         });
     });
 });
+
 
 // **Cerrar sesión**
 app.post('/logout', (req, res) => {
@@ -975,6 +1038,7 @@ io.on("connection", (socket) => {
 
 
 // **Iniciar servidor**
-server.listen(5000, () => {
-    console.log('✅ Servidor con Socket.IO corriendo en http://localhost:5000');
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
 });

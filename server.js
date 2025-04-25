@@ -273,7 +273,7 @@ app.post('/login-empleado', (req, res) => {
                 );
 
                 // Guardar sesión
-                pool.query('INSERT INTO sesiones (usuario_id, token) VALUES (?, ?)', [empleado.id, token], (err) => {
+                pool.query('INSERT INTO sesiones (empleado_id, token) VALUES (?, ?)', [empleado.id, token], (err) => {
                     if (err) {
                         console.error('Error al guardar sesión:', err);
                         return res.status(500).json({ message: 'Error al guardar sesión' });

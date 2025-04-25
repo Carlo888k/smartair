@@ -228,8 +228,13 @@ app.post('/login', (req, res) => {
                 }
                 res.json({token, tipo: user.tipo, id: user.id});
             });
+        });
+    });
+});
 
-            
+
+
+
 app.post('/login-empleado', (req, res) => {
     const { correo, contrasenia } = req.body;
 

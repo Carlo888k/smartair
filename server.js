@@ -878,6 +878,15 @@ const TemperaturaSchema = new mongoose.Schema({
     humo: Boolean,
     fecha: {type: Date, default: Date.now}
 });
+
+const WorkingModeSchema = new mongoose.Schema({
+    is_automatic: Boolean,
+    is_up: Boolean,
+    is_down: Boolean,
+    fecha: {type: Date, default: Date.now}
+});
+const WorkingMode = mongoose.model("working_mode", WorkingModeSchema);
+
 // WebSocket: Emitir temperatura actual cada 5s
 io.on("connection", (socket) => {
     console.log("📡 Cliente conectado a WebSocket");
@@ -894,6 +903,18 @@ io.on("connection", (socket) => {
                 fecha: lastTemp.fecha,
             });
         }
+        
+        const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
+        
+        if (lastWorkingMode) {
+            socket.emit("newWorkingMode", {
+                is_automatic: lastWorkingMode.is_automatic,
+                is_up: lastWorkingMode.is_up,
+                is_down: lastWorkingMode.is_down,
+                fecha: lastWorkingMode.fecha
+            });
+        }
+
     }, 5000);
 
     socket.on("disconnect", () => {
@@ -902,6 +923,28 @@ io.on("connection", (socket) => {
     });
 });
 
+// --- Guardar datos desde IoT ---
+app.post("/api/iot/working-mode", async (req, res) => {
+    const {is_automatic, is_up, is_down} = req.body;
+
+    try {
+        const nuevoDato = new WorkingMode({is_automatic, is_up, is_down});
+        await nuevoDato.save();
+
+        // ⚠️ Emitimos inmediatamente a todos los clientes conectados
+        io.emit("newWorkingMode", {
+            is_automatic, 
+            is_up, 
+            is_down,
+            fecha: nuevoDato.fecha
+        });
+
+        res.json({message: "Datos guardados en MongoDB"});
+    } catch (error) {
+        console.error("Error al guardar en MongoDB:", error);
+        res.status(500).json({message: "Error al guardar en MongoDB"});
+    }
+});
 
 const Temperatura = mongoose.model("Temperatura", TemperaturaSchema);
 

@@ -929,65 +929,56 @@ app.get("/api/manual", async (req, res) => {
 
 // WebSocket: Emitir temperatura actual cada 5s
 io.on("connection", (socket) => {
-    console.log("📡 Cliente conectado a WebSocket");
+    console.log("📡 Intentando conexión WebSocket...");
 
-    const intervalId = setInterval(async () => {
-        const lastTemp = await Temperatura.findOne().sort({fecha: -1});
+    // 1️⃣ Sacamos el token que el cliente manda al conectarse
+    const token = socket.handshake.query.token;
 
-        if (lastTemp) {
-            socket.emit("newTemperature", {
-                temperatura: lastTemp.temperatura,
-                humedad: lastTemp.humedad,
-                lluvia: lastTemp.lluvia,
-                humo: lastTemp.humo,
-                fecha: lastTemp.fecha,
-            });
-        }
-        
-        const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
-        
-        if (lastWorkingMode) {
-            socket.emit("newWorkingMode", {
-                is_automatic: lastWorkingMode.is_automatic,
-                is_up: lastWorkingMode.is_up,
-                is_down: lastWorkingMode.is_down,
-                fecha: lastWorkingMode.fecha
-            });
+    // 2️⃣ Verificamos el token
+    jwt.verify(token, "secreto", (err, decoded) => {
+        if (err) {
+            console.log("❌ Token inválido. Desconectando...");
+            socket.disconnect();
+            return;
         }
 
-    }, 5000);
-    socket.on("newWorkingMode", async (data) => {
-        console.log("📲 Recibido newWorkingMode desde app móvil:", data);
+        console.log("🔐 Token válido. Usuario autenticado:", decoded);
 
-        try {
-            // Buscar el último documento de modo
-            let lastMode = await WorkingMode.findOne().sort({fecha: -1});
-            if (lastMode) {
-                lastMode.is_automatic = data.is_automatic;
-                lastMode.is_up = data.is_up;
-                lastMode.is_down = data.is_down;
-                await lastMode.save();
-            } else {
-                await WorkingMode.create({
-                    is_automatic: data.is_automatic,
-                    is_up: data.is_up,
-                    is_down: data.is_down
+        // 3️⃣ Aquí adentro sigue el comportamiento normal:
+        console.log("✅ Cliente conectado a WebSocket");
+
+        const intervalId = setInterval(async () => {
+            const lastTemp = await Temperatura.findOne().sort({ fecha: -1 });
+
+            if (lastTemp) {
+                socket.emit("newTemperature", {
+                    temperatura: lastTemp.temperatura,
+                    humedad: lastTemp.humedad,
+                    lluvia: lastTemp.lluvia,
+                    humo: lastTemp.humo,
+                    fecha: lastTemp.fecha,
                 });
             }
 
-            // 🔥 Emitimos el cambio a todos los dispositivos
-            io.emit("newWorkingMode", data);
+            const lastWorkingMode = await WorkingMode.findOne().sort({ fecha: -1 });
 
-        } catch (error) {
-            console.error("❌ Error actualizando modo manual/automático:", error);
-        }
-    });
+            if (lastWorkingMode) {
+                socket.emit("newWorkingMode", {
+                    is_automatic: lastWorkingMode.is_automatic,
+                    is_up: lastWorkingMode.is_up,
+                    is_down: lastWorkingMode.is_down,
+                    fecha: lastWorkingMode.fecha,
+                });
+            }
+        }, 5000);
 
-    socket.on("disconnect", () => {
-        console.log("❌ Cliente desconectado");
-        clearInterval(intervalId);
+        socket.on("disconnect", () => {
+            console.log("❌ Cliente desconectado");
+            clearInterval(intervalId);
+        });
     });
 });
+
 
 // --- Guardar datos desde IoT ---
 app.post("/api/iot/working-mode", async (req, res) => {
@@ -1136,20 +1127,6 @@ app.get("/api/notificaciones", async (req, res) => {
         res.status(500).json({error: "Error al obtener notificaciones"});
     }
 });
-io.on("connection", (socket) => {
-    console.log("📡 Cliente conectado a WebSocket");
-
-    const intervalId = setInterval(async () => {
-        const lastTemp = await Temperatura.findOne().sort({fecha: -1});
-        socket.emit("newTemperature", lastTemp);
-    }, 5000);
-
-    socket.on("disconnect", () => {
-        console.log("❌ Cliente desconectado");
-        clearInterval(intervalId);
-    });
-});
-
 
 // **Iniciar servidor**
 const PORT = process.env.PORT || 5000;

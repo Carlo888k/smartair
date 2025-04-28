@@ -941,15 +941,17 @@ app.post("/api/iot/working-mode", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        ws.send(JSON.stringify({
-            type: "newWorkingMode",
-            payload: {
-                is_automatic: is_automatic,
-                is_up: is_up,
-                is_down: is_down,
-                fecha: nuevoDato.fecha
-            }
-        }));
+        wss.on('connection', function connection(ws) {
+            ws.send(JSON.stringify({
+                type: "newWorkingMode",
+                payload: {
+                    is_automatic: is_automatic,
+                    is_up: is_up,
+                    is_down: is_down,
+                    fecha: nuevoDato.fecha
+                }
+            }));
+        });
 
         res.json({message: "Datos guardados en MongoDB"});
     } catch (error) {
@@ -969,16 +971,18 @@ app.post("/api/iot/temperatura", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        ws.send(JSON.stringify({
-            type: "newTemperature",
-            payload: {
-                temperatura: temperatura,
-                humedad: humedad,
-                lluvia: lluvia,
-                humo: humo,
-                fecha: nuevoDato.fecha
-            }
-        }));
+        wss.on('connection', function connection(ws) {
+            ws.send(JSON.stringify({
+                type: "newTemperature",
+                payload: {
+                    temperatura: temperatura,
+                    humedad: humedad,
+                    lluvia: lluvia,
+                    humo: humo,
+                    fecha: nuevoDato.fecha
+                }
+            }));
+        });
 
         res.json({message: "Datos guardados en MongoDB"});
     } catch (error) {
@@ -1091,7 +1095,7 @@ wss.on('connection', (ws) => {
 
     const intervalId = setInterval(async () => {
         try {
-            const lastTemp = await Temperatura.findOne().sort({ fecha: -1 });
+            const lastTemp = await Temperatura.findOne().sort({fecha: -1});
             if (lastTemp) {
                 ws.send(JSON.stringify({
                     type: "newTemperature",
@@ -1099,7 +1103,7 @@ wss.on('connection', (ws) => {
                 }));
             }
 
-            const lastWorkingMode = await WorkingMode.findOne().sort({ fecha: -1 });
+            const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
             if (lastWorkingMode) {
                 ws.send(JSON.stringify({
                     type: "newWorkingMode",
@@ -1121,7 +1125,6 @@ wss.on('connection', (ws) => {
         clearInterval(intervalId);
     });
 });
-
 
 
 // **Iniciar servidor**

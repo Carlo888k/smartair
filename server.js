@@ -824,7 +824,6 @@ app.get("/api/reportes/ventas-mes", (req, res) => {
 // EXPORTAR REPORTES DE VENTA POR MES EN PDF
 const PDFDocument = require("pdfkit");
 const fsExtra = require("fs");
-const {send} = require("ws/lib/sender");
 
 app.get("/api/reportes/ventas-mes/pdf", (req, res) => {
     const query = `
@@ -892,7 +891,7 @@ wss.on('connection', (ws) => {
             const lastTemp = await Temperatura.findOne().sort({fecha: -1});
 
             if (lastTemp) {
-                send(JSON.stringify({
+                ws.send(JSON.stringify({
                     type: "newTemperature",
                     payload: {
                         temperatura: lastTemp.temperatura,
@@ -907,7 +906,7 @@ wss.on('connection', (ws) => {
             const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
 
             if (lastWorkingMode) {
-                send(JSON.stringify({
+                ws.send(JSON.stringify({
                     type: "newWorkingMode",
                     payload: {
                         is_automatic: lastWorkingMode.is_automatic,
@@ -942,7 +941,7 @@ app.post("/api/iot/working-mode", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        send(JSON.stringify({
+        ws.send(JSON.stringify({
             type: "newWorkingMode",
             payload: {
                 is_automatic: is_automatic,
@@ -970,7 +969,7 @@ app.post("/api/iot/temperatura", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        send(JSON.stringify({
+        ws.send(JSON.stringify({
             type: "newTemperature",
             payload: {
                 temperatura: temperatura,
@@ -1094,7 +1093,7 @@ wss.on('connection', (ws) => {
         try {
             const lastTemp = await Temperatura.findOne().sort({ fecha: -1 });
             if (lastTemp) {
-                send(JSON.stringify({
+                ws.send(JSON.stringify({
                     type: "newTemperature",
                     payload: lastTemp
                 }));
@@ -1102,7 +1101,7 @@ wss.on('connection', (ws) => {
 
             const lastWorkingMode = await WorkingMode.findOne().sort({ fecha: -1 });
             if (lastWorkingMode) {
-                send(JSON.stringify({
+                ws.send(JSON.stringify({
                     type: "newWorkingMode",
                     payload: lastWorkingMode
                 }));

@@ -11,6 +11,7 @@ const mysql = require("mysql2");
 const axios = require("axios");
 const mongoose = require("mongoose");
 const http = require("http");
+const WebSocket = require('ws');
 require('dotenv').config();
 
 const app = express();
@@ -27,13 +28,10 @@ app.use(cors(corsOptions));  // Aplica CORS a todas las rutas
 
 app.use(express.json()); // parsear JSON
 
-// 🔌 Socket.IO con CORS (igual configurado)
-const socketIo = require("socket.io");
 const server = http.createServer(app);
-const io = socketIo(server, {
-    cors: corsOptions
-});
 
+// 🔌 Crea el servidor WebSocket
+const wss = new WebSocket.Server({server});
 
 // Verificar si la carpeta 'uploads' existe; si no, crearla
 const uploadDir = 'uploads/';
@@ -233,20 +231,18 @@ app.post('/login', (req, res) => {
 });
 
 
-
-
 app.post('/login-empleado', (req, res) => {
-    const { correo, contrasenia } = req.body;
+    const {correo, contrasenia} = req.body;
 
     // Buscar por correo en tabla empleados
     pool.query('SELECT * FROM empleados WHERE correo = ?', [correo], async (err, results) => {
         if (err) {
             console.error('Error en la consulta:', err);
-            return res.status(500).json({ message: 'Error en el servidor' });
+            return res.status(500).json({message: 'Error en el servidor'});
         }
 
         if (results.length === 0) {
-            return res.status(401).json({ message: 'Empleado no encontrado' });
+            return res.status(401).json({message: 'Empleado no encontrado'});
         }
 
         const empleado = results[0];
@@ -254,32 +250,32 @@ app.post('/login-empleado', (req, res) => {
         // Validar contraseña encriptada con bcrypt
         const passwordMatch = await bcrypt.compare(contrasenia, empleado.contrasenia);
         if (!passwordMatch) {
-            return res.status(401).json({ message: 'Contraseña incorrecta' });
+            return res.status(401).json({message: 'Contraseña incorrecta'});
         }
 
         // Verificar si ya tiene sesión activa
         pool.query('SELECT * FROM sesiones WHERE usuario_id = ?', [empleado.id], (err, sessionResult) => {
             if (err) {
                 console.error('Error al verificar sesión:', err);
-                return res.status(500).json({ message: 'Error al verificar sesión' });
+                return res.status(500).json({message: 'Error al verificar sesión'});
             }
 
             const continuarLogin = () => {
                 // Generar token con tipo de usuario = empleado
                 const token = jwt.sign(
-                    { id: empleado.id, correo: empleado.correo, tipo: 'empleado' },
+                    {id: empleado.id, correo: empleado.correo, tipo: 'empleado'},
                     'secreto',
-                    { expiresIn: '1h' }
+                    {expiresIn: '1h'}
                 );
 
                 // Guardar sesión
                 pool.query('INSERT INTO sesiones (empleado_id, token) VALUES (?, ?)', [empleado.id, token], (err) => {
                     if (err) {
                         console.error('Error al guardar sesión:', err);
-                        return res.status(500).json({ message: 'Error al guardar sesión' });
+                        return res.status(500).json({message: 'Error al guardar sesión'});
                     }
 
-                    res.json({ token, id: empleado.id, tipo: 'empleado' });
+                    res.json({token, id: empleado.id, tipo: 'empleado'});
                 });
             };
 
@@ -288,7 +284,7 @@ app.post('/login-empleado', (req, res) => {
                 pool.query('DELETE FROM sesiones WHERE usuario_id = ?', [empleado.id], (err) => {
                     if (err) {
                         console.error('Error al eliminar sesión previa:', err);
-                        return res.status(500).json({ message: 'Error al eliminar sesión previa' });
+                        return res.status(500).json({message: 'Error al eliminar sesión previa'});
                     }
                     continuarLogin();
                 });
@@ -887,38 +883,51 @@ const WorkingModeSchema = new mongoose.Schema({
 });
 const WorkingMode = mongoose.model("working_mode", WorkingModeSchema);
 
-// WebSocket: Emitir temperatura actual cada 5s
-io.on("connection", (socket) => {
+wss.on('connection', (ws) => {
     console.log("📡 Cliente conectado a WebSocket");
 
     const intervalId = setInterval(async () => {
-        const lastTemp = await Temperatura.findOne().sort({fecha: -1});
+        try {
+            const lastTemp = await Temperatura.findOne().sort({fecha: -1});
 
-        if (lastTemp) {
-            socket.emit("newTemperature", {
-                temperatura: lastTemp.temperatura,
-                humedad: lastTemp.humedad,
-                lluvia: lastTemp.lluvia,
-                humo: lastTemp.humo,
-                fecha: lastTemp.fecha,
-            });
-        }
-        
-        const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
-        
-        if (lastWorkingMode) {
-            socket.emit("newWorkingMode", {
-                is_automatic: lastWorkingMode.is_automatic,
-                is_up: lastWorkingMode.is_up,
-                is_down: lastWorkingMode.is_down,
-                fecha: lastWorkingMode.fecha
-            });
-        }
+            if (lastTemp) {
+                ws.send(JSON.stringify({
+                    type: "newTemperature",
+                    payload: {
+                        temperatura: lastTemp.temperatura,
+                        humedad: lastTemp.humedad,
+                        lluvia: lastTemp.lluvia,
+                        humo: lastTemp.humo,
+                        fecha: lastTemp.fecha,
+                    }
+                }));
+            }
 
+            const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
+
+            if (lastWorkingMode) {
+                ws.send(JSON.stringify({
+                    type: "newWorkingMode",
+                    payload: {
+                        is_automatic: lastWorkingMode.is_automatic,
+                        is_up: lastWorkingMode.is_up,
+                        is_down: lastWorkingMode.is_down,
+                        fecha: lastWorkingMode.fecha
+                    }
+                }));
+            }
+        } catch (err) {
+            console.error("❌ Error consultando MongoDB:", err);
+        }
     }, 5000);
 
-    socket.on("disconnect", () => {
+    ws.on('close', () => {
         console.log("❌ Cliente desconectado");
+        clearInterval(intervalId);
+    });
+
+    ws.on('error', (err) => {
+        console.error("💥 Error en WebSocket:", err);
         clearInterval(intervalId);
     });
 });
@@ -932,12 +941,15 @@ app.post("/api/iot/working-mode", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        io.emit("newWorkingMode", {
-            is_automatic, 
-            is_up, 
-            is_down,
-            fecha: nuevoDato.fecha
-        });
+        ws.send(JSON.stringify({
+            type: "newWorkingMode",
+            payload: {
+                is_automatic: is_automatic,
+                is_up: is_up,
+                is_down: is_down,
+                fecha: nuevoDato.fecha
+            }
+        }));
 
         res.json({message: "Datos guardados en MongoDB"});
     } catch (error) {
@@ -957,13 +969,16 @@ app.post("/api/iot/temperatura", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        io.emit("newTemperature", {
-            temperatura,
-            humedad,
-            lluvia,
-            humo,
-            fecha: nuevoDato.fecha
-        });
+        ws.send(JSON.stringify({
+            type: "newTemperature",
+            payload: {
+                temperatura: temperatura,
+                humedad: humedad,
+                lluvia: lluvia,
+                humo: humo,
+                fecha: nuevoDato.fecha
+            }
+        }));
 
         res.json({message: "Datos guardados en MongoDB"});
     } catch (error) {
@@ -1070,19 +1085,43 @@ app.get("/api/notificaciones", async (req, res) => {
         res.status(500).json({error: "Error al obtener notificaciones"});
     }
 });
-io.on("connection", (socket) => {
+
+wss.on('connection', (ws) => {
     console.log("📡 Cliente conectado a WebSocket");
 
     const intervalId = setInterval(async () => {
-        const lastTemp = await Temperatura.findOne().sort({fecha: -1});
-        socket.emit("newTemperature", lastTemp);
+        try {
+            const lastTemp = await Temperatura.findOne().sort({ fecha: -1 });
+            if (lastTemp) {
+                ws.send(JSON.stringify({
+                    type: "newTemperature",
+                    payload: lastTemp
+                }));
+            }
+
+            const lastWorkingMode = await WorkingMode.findOne().sort({ fecha: -1 });
+            if (lastWorkingMode) {
+                ws.send(JSON.stringify({
+                    type: "newWorkingMode",
+                    payload: lastWorkingMode
+                }));
+            }
+        } catch (err) {
+            console.error("❌ Error en consulta a MongoDB:", err);
+        }
     }, 5000);
 
-    socket.on("disconnect", () => {
+    ws.on('close', () => {
         console.log("❌ Cliente desconectado");
         clearInterval(intervalId);
     });
+
+    ws.on('error', (err) => {
+        console.error("💥 Error en conexión WebSocket:", err);
+        clearInterval(intervalId);
+    });
 });
+
 
 
 // **Iniciar servidor**

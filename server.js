@@ -207,12 +207,7 @@ app.post('/login', (req, res) => {
 
             // Si ya tiene una sesión, la eliminamos para permitir una nueva
             if (sessionResult.length > 0) {
-                pool.query('DELETE FROM sesiones WHERE usuario_id = ?', [user.id], (err) => {
-                    if (err) {
-                        console.error('Error al eliminar sesión previa:', err);
-                        return res.status(500).json({message: 'Error al eliminar sesión previa'});
-                    }
-                });
+                return res.status(403).json({message: 'El usuario ya cuenta con una sesion activa'});
             }
 
             // Generar nuevo token

@@ -883,41 +883,29 @@ const WorkingModeSchema = new mongoose.Schema({
 });
 const WorkingMode = mongoose.model("working_mode", WorkingModeSchema);
 
+
 wss.on('connection', (ws) => {
     console.log("📡 Cliente conectado a WebSocket");
 
     const intervalId = setInterval(async () => {
         try {
             const lastTemp = await Temperatura.findOne().sort({fecha: -1});
-
             if (lastTemp) {
                 ws.send(JSON.stringify({
                     type: "newTemperature",
-                    payload: {
-                        temperatura: lastTemp.temperatura,
-                        humedad: lastTemp.humedad,
-                        lluvia: lastTemp.lluvia,
-                        humo: lastTemp.humo,
-                        fecha: lastTemp.fecha,
-                    }
+                    payload: lastTemp
                 }));
             }
 
             const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
-
             if (lastWorkingMode) {
                 ws.send(JSON.stringify({
                     type: "newWorkingMode",
-                    payload: {
-                        is_automatic: lastWorkingMode.is_automatic,
-                        is_up: lastWorkingMode.is_up,
-                        is_down: lastWorkingMode.is_down,
-                        fecha: lastWorkingMode.fecha
-                    }
+                    payload: lastWorkingMode
                 }));
             }
         } catch (err) {
-            console.error("❌ Error consultando MongoDB:", err);
+            console.error("❌ Error en consulta a MongoDB:", err);
         }
     }, 5000);
 
@@ -927,7 +915,7 @@ wss.on('connection', (ws) => {
     });
 
     ws.on('error', (err) => {
-        console.error("💥 Error en WebSocket:", err);
+        console.error("💥 Error en conexión WebSocket:", err);
         clearInterval(intervalId);
     });
 });
@@ -941,16 +929,18 @@ app.post("/api/iot/working-mode", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        wss.on('connection', function connection(ws) {
-            ws.send(JSON.stringify({
-                type: "newWorkingMode",
-                payload: {
-                    is_automatic: is_automatic,
-                    is_up: is_up,
-                    is_down: is_down,
-                    fecha: nuevoDato.fecha
-                }
-            }));
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: "newWorkingMode",
+                    payload: {
+                        is_automatic: is_automatic,
+                        is_up: is_up,
+                        is_down: is_down,
+                        fecha: nuevoDato.fecha
+                    }
+                }));
+            }
         });
 
         res.json({message: "Datos guardados en MongoDB"});
@@ -971,17 +961,19 @@ app.post("/api/iot/temperatura", async (req, res) => {
         await nuevoDato.save();
 
         // ⚠️ Emitimos inmediatamente a todos los clientes conectados
-        wss.on('connection', function connection(ws) {
-            ws.send(JSON.stringify({
-                type: "newTemperature",
-                payload: {
-                    temperatura: temperatura,
-                    humedad: humedad,
-                    lluvia: lluvia,
-                    humo: humo,
-                    fecha: nuevoDato.fecha
-                }
-            }));
+        wss.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify({
+                    type: "newTemperature",
+                    payload: {
+                        temperatura: temperatura,
+                        humedad: humedad,
+                        lluvia: lluvia,
+                        humo: humo,
+                        fecha: nuevoDato.fecha
+                    }
+                }));
+            }
         });
 
         res.json({message: "Datos guardados en MongoDB"});
@@ -1089,43 +1081,6 @@ app.get("/api/notificaciones", async (req, res) => {
         res.status(500).json({error: "Error al obtener notificaciones"});
     }
 });
-
-wss.on('connection', (ws) => {
-    console.log("📡 Cliente conectado a WebSocket");
-
-    const intervalId = setInterval(async () => {
-        try {
-            const lastTemp = await Temperatura.findOne().sort({fecha: -1});
-            if (lastTemp) {
-                ws.send(JSON.stringify({
-                    type: "newTemperature",
-                    payload: lastTemp
-                }));
-            }
-
-            const lastWorkingMode = await WorkingMode.findOne().sort({fecha: -1});
-            if (lastWorkingMode) {
-                ws.send(JSON.stringify({
-                    type: "newWorkingMode",
-                    payload: lastWorkingMode
-                }));
-            }
-        } catch (err) {
-            console.error("❌ Error en consulta a MongoDB:", err);
-        }
-    }, 5000);
-
-    ws.on('close', () => {
-        console.log("❌ Cliente desconectado");
-        clearInterval(intervalId);
-    });
-
-    ws.on('error', (err) => {
-        console.error("💥 Error en conexión WebSocket:", err);
-        clearInterval(intervalId);
-    });
-});
-
 
 // **Iniciar servidor**
 const PORT = process.env.PORT || 5000;
